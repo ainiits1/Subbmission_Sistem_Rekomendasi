@@ -114,6 +114,9 @@ Adapun tahapan data preparation yang dilakukan yaitu:
 4. **Mengubah semua kategori menjadi title case (kapital di awal kata)**. Hal ini dilakukan karena penulisan kategori masih tidak konsisten, ada yang huruf awal kecil dan ada juga yang hurul awal besar. Oleh karena itu, penulisan di awal huruf dari semua kategori disamakan yakni kapital di awal kata, dan kategori yang memiliki 2 kata terpisah diberi tanda '_' untuk memisahkan keduanya tanpa harus menggunakan spasi agar nantinya tidak terbaca menjadi 2 kategori.
 5. **Mengurutkan data berdasarkan post_id dan menghapus data duplikat**. Variabel 'data_posting' diurutkan kembali berdasarkan post_id dan disimpan dalam variabel 'preparation'. Hal ini dilakukan untuk mengurutkan data dan menghapus data duplikat setelah tahap penyamaan jenis kategori postingan.
 6. **Mengonversi data series menjadi bentuk list dan membuat dataframe baru untuk data tersebut**. Mengonversi data series post_id, title, dan categori menjadi bentuk list serta membuat dataframe untuk data tersebut dan disimpan dalam variabel 'post_new'. Hal ini dilakukan untuk mempersiapkan data agar bisa digunakan dalam sistem rekomendasi _content-based filtering_.
+7. **TF-IDF Vectorizer untuk _Content-Based Filtering_**. Hal ini dilakukan pada 'data post_new' berdasarkan category_post. Hal ini dilakukan untuk mengubah kumpulan teks menjadi vektor angka yang bisa digunakan oleh model _content-based filtering_, dan selanjutnya mengubah vektor tf-idf dalam bentuk matriks dengan menggunakan fungsi todense.
+8. **Encoding User dan Post_id untuk Collaborative Filtering**. Hal ini dilakukan pada 'data view' yang berisi user_id, post_id, dan time_stamp. Encoding user_id dan post_id untuk collaborative filtering digunakan untuk mengubah ID asli yang masih berupa string menjadi index numerik yang terurut dan efisien untuk model _collaborative filtering_.
+9. **Membuat fitur 'interaction' dan membagi data training dan validasi untuk _collaborative filtering_**. Pembuatan fitur interaction =1 digunakan untuk membuat label interaksi positif antara user dan postingan karena pada data view tidak ada rating, dan selanjutnya membagi data training sebesar 80% dan data validasi sebesar 20%.
 
 ## Modeling and Result
 Pada tahap ini, dilakukan pembuatan 2 sistem rekomendasi, yaitu menggunakan _content-based filtering_ dan _collaborative filtering_.
@@ -121,9 +124,10 @@ Pada tahap ini, dilakukan pembuatan 2 sistem rekomendasi, yaitu menggunakan _con
    - Pendekatan _content-based filtering_ menggunakan data  post_id, title_post, dan category untuk merekomendasikan judul postingan yang mirip dengan judul postingan yang disukai pengguna di masa lalu.
    - Ada 4 tahapan dalam pendekatan ini, yaitu:
      1. Mendefinisikan data post_new
-     2. TF-IDF Vectorizer untuk menemukan representasi fitur penting dari setiap kategori postingan menggunakan fungsi ```tfidfvectorizer()```
+     2. Membuat dataframe untuk melihat tf-idf matrix
      3. Cosine Similarity untuk menghitung derajat kesamaan antar postingan menggunakan fungsi ```cosine_similarity```
-     4. Mendapatkan rekomendasi
+     4. Membuat dataframe dari variabel cosine_sim dengan baris dan kolom berupa judul postingan untuk melihat similiraty matrix pada setiap postingan
+     5. Mendapatkan rekomendasi
      
         ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-29%20083426.png?raw=true)
 
@@ -140,20 +144,22 @@ Pada tahap ini, dilakukan pembuatan 2 sistem rekomendasi, yaitu menggunakan _con
     - Pendekatan _collaborative filtering_ menggunakan dataset view, yang berisi user_id, post_id dan time_stamp. Pendekatan ini dilakukan berdasarkan data interaksi pengguna pada postingan. Adapun tujuan pendekatan ini untuk merekomendasikan judul postingan yang mungkin disukai tetapi belum pernah dilihat oleh pengguna.
     - Ada 5 tahapan dalam pendekatan ini:
       1. Mendefinisikan data view
-      2. Data Preparation:
-         - Menyandikan (encode) fitur 'user_id' dan 'post_id ke dalam indeks integer.
-         - Memetakan 'user_id dan 'post_id' ke dataframe yang berkaitan.
-         - Mengecek beberapa hal dalam data seperti jumlah user, dan jumlah postingan, yakni 500 user dan 6000 postingan.
-      3. Membagi data untuk training dan validasi (80%, 20%)
-      4. Proses training, membuat ```class RecommenderNet(tf.keras.Model)```
+      2. Proses training, membuat ```class RecommenderNet(tf.keras.Model)```
+         - Model RecommenderNet menghasilkan rekomendasi dengan merepresentasikan user dan postingan sebagai vektor embedding. Skor kesesuaian dihitung melalui dot product antara embedding, ditambah bias, lalu diproses dengan fungsi sigmoid untuk menghasilkan probabilitas interaksi. Rekomendasi diberikan dengan mengurutkan skor tertinggi untuk tiap user.
+         - Parameter penting:
+             - num_users: jumlah user unik
+             - num_posts: jumlah postingan unik
+             - embedding_size: ukuran vektor embedding
+             - embeddings_regularizer: untuk mencegah overfitting
+             - activation (sigmoid): mengubah skor menjadi probabilitas
       5. Visualisasi metrik
       6. Mendapatkan rekomendasi
 
-         ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-29%20090359.png?raw=true)
+         ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20154446.png?raw=true)
 
          Berdasarkan output di atas, diperoleh daftar postingan dengan viewer tertinggi.
 
-         ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-29%20090418.png?raw=true)
+         ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20154456.png?raw=true)
 
          Berdasarkan output di atas, diperoleh Top 10 rekomendasi postingan.
   - Kelebihan _collaborative filtering_:
@@ -165,6 +171,23 @@ Pada tahap ini, dilakukan pembuatan 2 sistem rekomendasi, yaitu menggunakan _con
       - Data sparsity
    
 ## Evaluation
+1. Evaluasi untuk pendekatan _content-based filtering_
+   - Adapun metrik evaluasi yang digunakan pada _content-based filtering_ adalah Precision@K dan Recall@K.
+   - Formula Precision@K
+  
+      ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20152113.png?raw=true)
+
+   - Formula Recall@K
+  
+      ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20152119.png?raw=true)
+   
+   - Output evaluasi
+  
+      ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20151234.png?raw=true)
+
+     Berdasarkan output di atas diperoleh nilai Precision@5 dan Recall@5 dari judul post 'How To Turn Your MATHEMATICS From Zero To Hero' masing masing adalah 100.00%.
+     
+2. Evaluasi untuk pendekatan _collaborative filtering_
 Adapun metrik evaluasi yang digunakan pada proyek ini adalah _Root Mean Squared Error_ (RMSE).
 - Formula RMSE
 
@@ -183,11 +206,11 @@ Adapun metrik evaluasi yang digunakan pada proyek ini adalah _Root Mean Squared 
 
 Ouput proyek:
 
- ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-29%20105327.png?raw=true)
+ ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-30%20153259.png?raw=true)
 
-Berdasarkan output di atas, model hanya menggunakan 5 epoch dikarenakan pada epoch ke-5 sudah terlihat RMSE semakin kecil, yaitu 0,0247 dan error pada data validasi sebesar 0,0187.
+Berdasarkan output di atas, model hanya menggunakan 5 epoch dikarenakan pada epoch ke-5 sudah terlihat RMSE semakin kecil, yaitu 0,0245 dan error pada data validasi sebesar 0,0187.
 
-### Visualisasi metrik
+### Visualisasi metrik RMSE
 ![alt text](https://github.com/ainiits1/Subbmission_Sistem_Rekomendasi/blob/main/Screenshot%202025-05-29%20105342.png?raw=true)
 
 ## Referensi
